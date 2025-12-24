@@ -9,7 +9,6 @@ pnpm-lock.yaml
 .idea
 *.log
 coverage
-.env.local
 
 # Build output
 build   
