@@ -1,8 +1,59 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import MapComponent from "./MapComponent";
 
 const HomePage: React.FC = () => {
   const [activeSection, setActiveSection] = useState(0);
+  const [parkingSlots, setParkingSlots] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const mockCoordinates = [
+    { lat: 28.6159, lng: 77.2095 }, // Slot 1
+    { lat: 28.612, lng: 77.208 }, // Slot 2
+    { lat: 28.6145, lng: 77.2105 }, // Slot 3
+    { lat: 28.611, lng: 77.207 }, // Slot 4
+    { lat: 28.6165, lng: 77.211 }, // Slot 5
+    { lat: 28.6135, lng: 77.206 }, // Slot 6
+    { lat: 28.617, lng: 77.212 }, // Slot 7
+    { lat: 28.6105, lng: 77.205 }, // Slot 8
+    { lat: 28.618, lng: 77.213 }, // Slot 9
+    { lat: 28.6095, lng: 77.204 }, // Slot 10
+  ];
+  const API = import.meta.env.VITE_API_URL;
+  const fetchParkingSlots = async () => {
+    try {
+      const response = await fetch(`${API}/api/parking`);
+      const result = await response.json();
+
+      if (result.success) {
+        // Add coordinates to each parking slot
+        const slotsWithCoordinates = result.data.map(
+          (slot: any, index: number) => ({
+            ...slot,
+            coordinates: mockCoordinates[index % mockCoordinates.length] || {
+              lat: 28.6139,
+              lng: 77.209,
+            },
+          })
+        );
+        setParkingSlots(slotsWithCoordinates);
+      } else {
+        setError(result.message);
+      }
+    } catch (err) {
+      const errorMessage =
+        err instanceof Error ? err.message : "An unknown error occurred";
+      setError(errorMessage);
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchParkingSlots();
+  }, []);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -483,27 +534,15 @@ const HomePage: React.FC = () => {
                   ))}
                 </div>
               </div>
-              <div className="flex-1">
-                <div className="relative">
-                  <div className="backdrop-blur-xl bg-linear-to-br from-[#1B42CB]/20 to-[#FF2F6C]/20 border border-[#1B42CB]/30 rounded-2xl p-6">
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div className="text-lg font-bold text-[#EEECF6]">
-                          Live Map
-                        </div>
-                        <div className="text-xs px-3 py-1 bg-[#191919]/50 rounded-full text-[#EEECF6]">
-                          Real-time
-                        </div>
-                      </div>
-                      <div className="h-48 bg-[#191919]/50 rounded-xl flex items-center justify-center">
-                        <span className="text-4xl">🗺️</span>
-                      </div>
-                      <div className="text-sm text-[#EEECF6]/60">
-                        Interactive map showing available parking spots near you
-                      </div>
-                    </div>
+              {/* Live Map */}
+              <div>
+                {error && (
+                  <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+                    {error}
                   </div>
-                </div>
+                )}
+
+                <MapComponent parkingSlots={parkingSlots} loading={loading} />
               </div>
             </div>
           </div>

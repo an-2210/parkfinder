@@ -8,3 +8,12 @@
     oklab(0.8 0.2 0.1)
   );
 }
+
+/*  Leaflet icon paths */
+.leaflet-default-icon-path {
+  background-image: url(https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png);
+}
+
+.leaflet-default-shadow-path {
+  background-image: url(https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png);
+}
