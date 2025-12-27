@@ -15,9 +15,10 @@ L.Icon.Default.mergeOptions({
 
 // Custom parking icon
 const createParkingIcon = (status: string) => {
+  const statusLower = (status || "unknown").toLowerCase();
   return new L.Icon({
     iconUrl:
-      status === "available"
+      statusLower === "available"
         ? "https://cdn-icons-png.flaticon.com/512/3178/3178283.png" // Green parking icon
         : "https://cdn-icons-png.flaticon.com/512/3178/3178295.png", // Red parking icon
     iconSize: [32, 32],
@@ -89,6 +90,16 @@ const MapComponent: React.FC<MapComponentProps> = ({
     );
   }
 
+  // Filter out slots with invalid coordinates
+  const validParkingSlots = parkingSlots.filter(
+    (slot) => 
+      slot.coordinates && 
+      typeof slot.coordinates.lat === 'number' && 
+      typeof slot.coordinates.lng === 'number' &&
+      !isNaN(slot.coordinates.lat) && 
+      !isNaN(slot.coordinates.lng)
+  );
+
   return (
     <div className="flex-1">
       <div className="relative">
@@ -97,7 +108,7 @@ const MapComponent: React.FC<MapComponentProps> = ({
             <div className="flex items-center justify-between">
               <div className="text-lg font-bold text-[#EEECF6]">Live Map</div>
               <div className="text-xs px-3 py-1 bg-[#191919]/50 rounded-full text-[#EEECF6]">
-                {parkingSlots.length} Spots
+                {validParkingSlots.length} Spots
               </div>
             </div>
 
@@ -122,83 +133,87 @@ const MapComponent: React.FC<MapComponentProps> = ({
                 </Marker>
 
                 {/* Parking slots markers */}
-                {parkingSlots.map((slot) => (
-                  <Marker
-                    key={slot._id || slot.name}
-                    position={[slot.coordinates.lat, slot.coordinates.lng]}
-                    icon={createParkingIcon(slot.status)}
-                  >
-                    <Popup>
-                      <div className="p-2 min-w-[200px]">
-                        <h3 className="font-bold text-lg text-gray-800">
-                          {slot.name}
-                        </h3>
-                        <p className="text-gray-600 text-sm">{slot.location}</p>
+                {validParkingSlots.map((slot) => {
+                  const status = slot.status || "unknown";
+                  const statusFormatted = status.charAt(0).toUpperCase() + status.slice(1);
+                  
+                  return (
+                    <Marker
+                      key={slot._id || slot.name}
+                      position={[slot.coordinates.lat, slot.coordinates.lng]}
+                      icon={createParkingIcon(status)}
+                    >
+                      <Popup>
+                        <div className="p-2 min-w-[200px]">
+                          <h3 className="font-bold text-lg text-gray-800">
+                            {slot.name || "Unknown Parking"}
+                          </h3>
+                          <p className="text-gray-600 text-sm">{slot.location || "Location not specified"}</p>
 
-                        <div className="mt-2 space-y-1">
-                          <div className="flex justify-between">
-                            <span className="text-gray-700">Status:</span>
-                            <span
-                              className={`font-semibold ${
-                                slot.status === "available"
-                                  ? "text-green-600"
-                                  : "text-red-600"
-                              }`}
-                            >
-                              {slot.status.charAt(0).toUpperCase() +
-                                slot.status.slice(1)}
-                            </span>
+                          <div className="mt-2 space-y-1">
+                            <div className="flex justify-between">
+                              <span className="text-gray-700">Status:</span>
+                              <span
+                                className={`font-semibold ${
+                                  status.toLowerCase() === "available"
+                                    ? "text-green-600"
+                                    : "text-red-600"
+                                }`}
+                              >
+                                {statusFormatted}
+                              </span>
+                            </div>
+
+                            <div className="flex justify-between">
+                              <span className="text-gray-700">Price:</span>
+                              <span className="font-semibold">
+                                ₹{slot.pricePerHour || 0}/hr
+                              </span>
+                            </div>
+
+                            <div className="flex justify-between">
+                              <span className="text-gray-700">Available:</span>
+                              <span className="font-semibold">
+                                {(slot.availableSlots || 0)}/{(slot.capacity || 0)}
+                              </span>
+                            </div>
+
+                            <div className="flex justify-between">
+                              <span className="text-gray-700">Distance:</span>
+                              <span className="font-semibold">
+                                {slot.distance || "N/A"}
+                              </span>
+                            </div>
+
+                            <div className="flex justify-between">
+                              <span className="text-gray-700">Rating:</span>
+                              <span className="font-semibold">
+                                {(slot.rating || 0).toFixed(1)} ★
+                              </span>
+                            </div>
+
+                            <div className="flex justify-between">
+                              <span className="text-gray-700">Security:</span>
+                              <span className="font-semibold">
+                                {slot.securityLevel || "N/A"}
+                              </span>
+                            </div>
                           </div>
 
-                          <div className="flex justify-between">
-                            <span className="text-gray-700">Price:</span>
-                            <span className="font-semibold">
-                              ₹{slot.pricePerHour}/hr
-                            </span>
-                          </div>
+                          {slot.isCovered && (
+                            <div className="mt-2 inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">
+                              Covered Parking
+                            </div>
+                          )}
 
-                          <div className="flex justify-between">
-                            <span className="text-gray-700">Available:</span>
-                            <span className="font-semibold">
-                              {slot.availableSlots}/{slot.capacity}
-                            </span>
-                          </div>
-
-                          <div className="flex justify-between">
-                            <span className="text-gray-700">Distance:</span>
-                            <span className="font-semibold">
-                              {slot.distance}
-                            </span>
-                          </div>
-
-                          <div className="flex justify-between">
-                            <span className="text-gray-700">Rating:</span>
-                            <span className="font-semibold">
-                              {slot.rating} ★
-                            </span>
-                          </div>
-
-                          <div className="flex justify-between">
-                            <span className="text-gray-700">Security:</span>
-                            <span className="font-semibold">
-                              {slot.securityLevel}
-                            </span>
+                          <div className="mt-3 text-xs text-gray-500">
+                            Timings: {slot.openingTime || "N/A"} - {slot.closingTime || "N/A"}
                           </div>
                         </div>
-
-                        {slot.isCovered && (
-                          <div className="mt-2 inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">
-                            Covered Parking
-                          </div>
-                        )}
-
-                        <div className="mt-3 text-xs text-gray-500">
-                          Timings: {slot.openingTime} - {slot.closingTime}
-                        </div>
-                      </div>
-                    </Popup>
-                  </Marker>
-                ))}
+                      </Popup>
+                    </Marker>
+                  );
+                })}
               </MapContainer>
             </div>
 
