@@ -114,7 +114,10 @@ const Navbar: React.FC = () => {
                 alt="SmartPark"
                 className="h-11 md:h-12 w-auto object-contain transition-all duration-300 group-hover:scale-105"
                 style={{
-                  filter: "brightness(0)",
+                  filter:
+                    theme === "light"
+                      ? "brightness(0)"
+                      : "brightness(0) invert(1)",
                 }}
               />
               {/* Glow Effect */}
