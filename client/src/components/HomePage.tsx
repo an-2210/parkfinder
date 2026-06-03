@@ -2,26 +2,18 @@ import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import MapComponent from "./MapComponent";
 import * as Icons from "lucide-react";
+import { useTheme } from "../context/ThemeContext";
 
 const HomePage: React.FC = () => {
   const [activeSection, setActiveSection] = useState(0);
   const [parkingSlots, setParkingSlots] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [theme, setTheme] = useState<"light" | "dark">("dark");
 
-  // Detect system theme
-  useEffect(() => {
-    const mediaQuery = window.matchMedia("(prefers-color-scheme: light)");
-    setTheme(mediaQuery.matches ? "light" : "dark");
 
-    const handler = (e: MediaQueryListEvent) => {
-      setTheme(e.matches ? "light" : "dark");
-    };
+ // Detect system theme
+  const { theme } = useTheme();
 
-    mediaQuery.addEventListener("change", handler);
-    return () => mediaQuery.removeEventListener("change", handler);
-  }, []);
 
   interface ParkingSlot {
     [key: string]: unknown;
@@ -631,7 +623,7 @@ const HomePage: React.FC = () => {
       </div>
 
       {/* Footer Section */}
-      <section className="home-section min-h-screen flex items-center relative px-4 py-20">
+      <section className="home-section relative px-4 py-10">
         <div className="max-w-7xl mx-auto w-full">
           <div
             className={`backdrop-blur-xl ${themeClasses.cardBg} ${themeClasses.cardBorder} border rounded-3xl p-8 md:p-12`}
