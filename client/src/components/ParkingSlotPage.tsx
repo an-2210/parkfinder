@@ -44,7 +44,6 @@ const mockCoordinates = [
 const ParkingSlotPage: React.FC = () => {
   const navigate = useNavigate();
 
-  // const [theme, setTheme] = useState<'light' | 'dark'>('dark');
   const [parkingSlots, setParkingSlots] = useState<ParkingSlot[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -62,6 +61,10 @@ const ParkingSlotPage: React.FC = () => {
     lng: number;
   } | null>(null);
   const [duration, setDuration] = useState(1);
+
+  // State for tracking favorited location IDs
+  const [favorites, setFavorites] = useState<string[]>([]);
+
   const { token, user } = useAuth();
   const API = import.meta.env.VITE_API_URL;
 
@@ -128,7 +131,6 @@ const ParkingSlotPage: React.FC = () => {
       const response = await fetch(`${API}/api/parking`);
       const result: ApiResponse = await response.json();
       if (result.success) {
-        // Add mock coordinates to slots
         const slotsWithCoordinates = result.data.map((slot, index) => ({
           ...slot,
           coordinates: mockCoordinates[index % mockCoordinates.length] || {
@@ -150,6 +152,24 @@ const ParkingSlotPage: React.FC = () => {
     }
   };
 
+  // Fetch user's favorite locations
+  const fetchFavorites = async () => {
+    if (!token) return;
+    try {
+      const res = await fetch(`${API}/api/favorites`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (data.success) {
+        // Extract just the IDs so it's easy to check `favorites.includes(id)`
+        const favoriteIds = data.data.map((fav: any) => fav._id);
+        setFavorites(favoriteIds);
+      }
+    } catch (err) {
+      console.error("Failed to fetch favorites:", err);
+    }
+  };
+
   useEffect(() => {
     // Get user location
     if (navigator.geolocation) {
@@ -162,7 +182,6 @@ const ParkingSlotPage: React.FC = () => {
         },
         (error) => {
           console.warn("Geolocation error:", error);
-          // Default to Delhi if location not available
           setUserLocation({ lat: 28.6139, lng: 77.209 });
         },
       );
@@ -172,6 +191,54 @@ const ParkingSlotPage: React.FC = () => {
 
     fetchParkingSlots();
   }, []);
+
+  // Fetch favorites separately to ensure it runs when token is available
+  useEffect(() => {
+    if (token) {
+      fetchFavorites();
+    }
+  }, [token]);
+
+  // Handle Toggle Favorite Button Click
+  const handleToggleFavorite = async (
+    e: React.MouseEvent,
+    locationId: string,
+  ) => {
+    e.stopPropagation(); // Prevents map markers from triggering if nested
+
+    if (!token || !user) {
+      alert("Please login to save favorite locations");
+      navigate("/login");
+      return;
+    }
+
+    try {
+      // Optimistically update UI
+      setFavorites((prev) =>
+        prev.includes(locationId)
+          ? prev.filter((id) => id !== locationId)
+          : [...prev, locationId],
+      );
+
+      const res = await fetch(`${API}/api/favorites/${locationId}`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      const data = await res.json();
+      if (!data.success) {
+        // Revert on failure
+        fetchFavorites();
+        console.error("Failed to toggle favorite:", data.message);
+      }
+    } catch (err) {
+      console.error("Error toggling favorite:", err);
+      fetchFavorites(); // Revert on failure
+    }
+  };
 
   // Calculate distance between two coordinates
   const calculateDistance = (
@@ -202,7 +269,6 @@ const ParkingSlotPage: React.FC = () => {
     return `https://www.google.com/maps/dir/?api=1&destination=${slot.coordinates.lat},${slot.coordinates.lng}`;
   };
 
-  // Handle booking button click - Show modal
   const handleBookNow = (slot: ParkingSlot) => {
     if (!token || !user) {
       alert("Please login to book a parking slot");
@@ -213,17 +279,14 @@ const ParkingSlotPage: React.FC = () => {
     setSelectedSlot(slot);
     setPaymentAmount(slot.pricePerHour * 1);
     setDuration(1);
-    // Show modal
     document.getElementById("booking-modal")?.classList.remove("hidden");
     document.getElementById("booking-modal")?.classList.add("flex");
   };
 
-  // Handle actual booking after payment
   const handleConfirmBooking = async () => {
     if (!selectedSlot || !token) return;
 
     try {
-      // Calculate total price
       const totalPrice = selectedSlot.pricePerHour * duration;
 
       const res = await fetch(`${API}/api/bookings/book`, {
@@ -243,13 +306,8 @@ const ParkingSlotPage: React.FC = () => {
 
       if (data.success) {
         alert("Booking successful!");
-        // Close modal
         closeModal();
-
-        // Refresh parking slots to update availability
         fetchParkingSlots();
-
-        // Redirect to bookings page
         navigate("/bookings");
       } else {
         alert(`❌ ${data.message || "Booking failed"}`);
@@ -260,7 +318,6 @@ const ParkingSlotPage: React.FC = () => {
     }
   };
 
-  // Handle duration change
   const handleDurationChange = (hours: number) => {
     setDuration(hours);
     if (selectedSlot) {
@@ -268,7 +325,6 @@ const ParkingSlotPage: React.FC = () => {
     }
   };
 
-  // Close modal function
   const closeModal = () => {
     document.getElementById("booking-modal")?.classList.add("hidden");
     document.getElementById("booking-modal")?.classList.remove("flex");
@@ -332,7 +388,6 @@ const ParkingSlotPage: React.FC = () => {
   const filteredAndSortedSlots = React.useMemo(() => {
     let filtered = [...parkingSlots];
 
-    // Apply search filter
     if (searchTerm) {
       filtered = filtered.filter(
         (slot) =>
@@ -341,14 +396,12 @@ const ParkingSlotPage: React.FC = () => {
       );
     }
 
-    // Apply status filter
     if (statusFilter) {
       filtered = filtered.filter(
         (slot) => slot.status.toLowerCase() === statusFilter.toLowerCase(),
       );
     }
 
-    // Apply sorting
     if (sortBy) {
       switch (sortBy) {
         case "price":
@@ -408,7 +461,6 @@ const ParkingSlotPage: React.FC = () => {
           className={`backdrop-blur-xl ${themeClasses.cardBg} ${themeClasses.cardBorder} border rounded-2xl overflow-hidden shadow-xl`}
         >
           <div className="h-[500px] relative">
-            {/* Mock Map Background */}
             <div
               className="absolute inset-0 bg-gradient-to-br from-[#1B42CB]/20 to-[#FF2F6C]/20"
               style={{
@@ -420,23 +472,16 @@ const ParkingSlotPage: React.FC = () => {
                 backgroundSize: "100px 100px",
               }}
             >
-              {/* User Location Marker */}
               <div
                 className="absolute w-8 h-8 transform -translate-x-1/2 -translate-y-1/2"
-                style={{
-                  left: "50%",
-                  top: "50%",
-                }}
+                style={{ left: "50%", top: "50%" }}
               >
                 <div className="w-full h-full rounded-full bg-gradient-to-br from-blue-500 to-cyan-400 border-2 border-white shadow-lg animate-pulse"></div>
                 <div className="absolute inset-0 rounded-full bg-blue-400 animate-ping opacity-30"></div>
               </div>
 
-              {/* Parking Slot Markers */}
               {filteredAndSortedSlots.map((slot, index) => {
                 if (!slot.coordinates) return null;
-
-                // Calculate relative position on map
                 const latDiff = slot.coordinates.lat - userLocation.lat;
                 const lngDiff = slot.coordinates.lng - userLocation.lng;
                 const left = 50 + lngDiff * 100;
@@ -544,7 +589,6 @@ const ParkingSlotPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Selected Slot Details */}
         {selectedMapSlot && (
           <div
             className={`backdrop-blur-xl ${themeClasses.cardBg} ${themeClasses.cardBorder} border rounded-2xl p-6 shadow-xl`}
@@ -701,7 +745,6 @@ const ParkingSlotPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Slot Content */}
               <div className="p-6">
                 {/* Header */}
                 <div className="flex justify-between items-start mb-6">
@@ -976,9 +1019,7 @@ const ParkingSlotPage: React.FC = () => {
           <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-[#1B42CB]/5 rounded-full blur-3xl"></div>
         </div>
 
-        {/* Main Content */}
         <div className="relative z-10 max-w-7xl mx-auto">
-          {/* Header Section */}
           <header className="mb-8 md:mb-12">
             <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
               <div
@@ -1080,7 +1121,6 @@ const ParkingSlotPage: React.FC = () => {
                 />
               </div>
 
-              {/* View Toggle Buttons */}
               <div className="flex items-center gap-3">
                 <div
                   className={`flex ${themeClasses.cardBgSecondary} border ${themeClasses.border} rounded-xl overflow-hidden`}
@@ -1133,7 +1173,6 @@ const ParkingSlotPage: React.FC = () => {
             </div>
           </div>
 
-          {/* View Content */}
           {filteredAndSortedSlots.length === 0 ? (
             <div
               className={`backdrop-blur-xl ${themeClasses.cardBg} ${themeClasses.cardBorder} border rounded-2xl p-12 text-center`}
@@ -1170,7 +1209,6 @@ const ParkingSlotPage: React.FC = () => {
             renderListView()
           )}
 
-          {/* Summary Section */}
           {parkingSlots.length > 0 && (
             <div
               className={`mt-8 backdrop-blur-xl bg-gradient-to-r ${themeClasses.gradient.accent}/10 border ${themeClasses.border} rounded-2xl p-8`}
@@ -1265,9 +1303,7 @@ const ParkingSlotPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Modal Content */}
           <div className="p-6 space-y-6">
-            {/* Slot Info */}
             {selectedSlot && (
               <>
                 <div className="space-y-4">
@@ -1311,7 +1347,6 @@ const ParkingSlotPage: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Duration Selector */}
                 <div>
                   <h3
                     className={`text-lg font-semibold ${themeClasses.text} mb-3`}
@@ -1335,7 +1370,6 @@ const ParkingSlotPage: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Price Summary */}
                 <div className={`${themeClasses.cardBg} rounded-xl p-4`}>
                   <div className="space-y-3">
                     <div className="flex justify-between">
@@ -1371,7 +1405,6 @@ const ParkingSlotPage: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Payment Method */}
                 <div className="space-y-2">
                   <h3 className={`text-lg font-semibold ${themeClasses.text}`}>
                     Payment Method
@@ -1413,7 +1446,6 @@ const ParkingSlotPage: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Action Buttons */}
                 <div className="flex gap-3">
                   <button
                     onClick={closeModal}
