@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
+import { useNavigate } from "react-router-dom";
 
 import {
   Chart as ChartJS,
@@ -100,6 +101,7 @@ const DashboardPage: React.FC = () => {
     "month",
   );
   const { token } = useAuth();
+  const navigate = useNavigate();
 
   const API = import.meta.env.VITE_API_URL;
 
@@ -571,14 +573,14 @@ const DashboardPage: React.FC = () => {
                     <Icons.Shield className="w-3 h-3" />
                     {activeBooking.parking.securityLevel} security
                   </span>
-                  <a
-                    href="/booked-slots"
-                    className={`flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium
-                      bg-gradient-to-r from-[#1B42CB] to-[#1B42CB]/80 text-white hover:opacity-90 transition-opacity`}
+                  <button
+                    onClick={() => navigate("/bookings")}
+                    className="flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium
+                      bg-gradient-to-r from-[#1B42CB] to-[#1B42CB]/80 text-white hover:opacity-90 transition-opacity"
                   >
                     <Icons.ExternalLink className="w-3 h-3" />
                     View Booking
-                  </a>
+                  </button>
                 </div>
               </div>
             </div>
