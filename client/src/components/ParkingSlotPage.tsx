@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import * as Icons from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
+import PredictionPanel from "./PredictionPanel";
 
 interface ParkingSlot {
   _id: string;
@@ -67,6 +68,9 @@ const ParkingSlotPage: React.FC = () => {
 
   const { token, user } = useAuth();
   const API = import.meta.env.VITE_API_URL;
+
+  // Prediction panel state
+  const [predictionSlot, setPredictionSlot] = useState<ParkingSlot | null>(null);
 
   // Detect system theme
   const { theme } = useTheme();
@@ -690,6 +694,13 @@ const ParkingSlotPage: React.FC = () => {
                 Get Directions
               </a>
               <button
+                onClick={() => setPredictionSlot(selectedMapSlot)}
+                className={`px-4 py-3 ${themeClasses.cardBgSecondary} border ${themeClasses.border} ${themeClasses.textSecondary} font-semibold rounded-xl ${themeClasses.hover} transition-all duration-300 flex items-center justify-center gap-2`}
+              >
+                <Icons.TrendingUp className="w-4 h-4" />
+                Forecast
+              </button>
+              <button
                 onClick={() => handleBookNow(selectedMapSlot)}
                 disabled={
                   selectedMapSlot.status !== "available" ||
@@ -905,6 +916,15 @@ const ParkingSlotPage: React.FC = () => {
 
                 {/* Action Buttons */}
                 <div className="flex gap-2">
+                  {/* Availability Forecast button */}
+                  <button
+                    onClick={() => setPredictionSlot(slot)}
+                    title="View availability forecast"
+                    className={`px-3 py-3 rounded-lg border ${themeClasses.cardBgSecondary} ${themeClasses.border} ${themeClasses.textSecondary} ${themeClasses.hover} transition-colors flex items-center justify-center gap-1.5 text-sm`}
+                  >
+                    <Icons.TrendingUp className="w-4 h-4" />
+                    Forecast
+                  </button>
                   <a
                     href={getDirectionsUrl(slot)}
                     target="_blank"
@@ -1278,9 +1298,17 @@ const ParkingSlotPage: React.FC = () => {
         </div>
       </div>
 
+      {/* Prediction Panel Modal */}
+      {predictionSlot && (
+        <PredictionPanel
+          parkingId={predictionSlot._id}
+          parkingName={predictionSlot.name}
+          onClose={() => setPredictionSlot(null)}
+        />
+      )}
+
       {/* Booking Modal */}
-      <div
-        id="booking-modal"
+      <div        id="booking-modal"
         className="hidden fixed inset-0 bg-black/80 backdrop-blur-sm items-center justify-center z-50 p-4"
       >
         <div
