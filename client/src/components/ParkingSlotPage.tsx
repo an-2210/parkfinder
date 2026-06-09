@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import * as Icons from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
+import PredictionPanel from "./PredictionPanel";
 
 interface ParkingSlot {
   _id: string;
@@ -66,7 +67,9 @@ const ParkingSlotPage: React.FC = () => {
   const [favorites, setFavorites] = useState<string[]>([]);
 
   const { token, user } = useAuth();
-  const API = import.meta.env.VITE_API_URL;
+
+  // Prediction panel state
+  const [predictionSlot, setPredictionSlot] = useState<ParkingSlot | null>(null);
 
   // Detect system theme
   const { theme } = useTheme();
@@ -128,7 +131,7 @@ const ParkingSlotPage: React.FC = () => {
   // Function to fetch parking slots
   const fetchParkingSlots = async () => {
     try {
-      const response = await fetch(`${API}/api/parking`);
+      const response = await fetch(`/api/parking`);
       const result: ApiResponse = await response.json();
       if (result.success) {
         const slotsWithCoordinates = result.data.map((slot, index) => ({
@@ -156,7 +159,7 @@ const ParkingSlotPage: React.FC = () => {
   const fetchFavorites = async () => {
     if (!token) return;
     try {
-      const res = await fetch(`${API}/api/favorites`, {
+      const res = await fetch(`/api/favorites`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
@@ -220,7 +223,7 @@ const ParkingSlotPage: React.FC = () => {
           : [...prev, locationId],
       );
 
-      const res = await fetch(`${API}/api/favorites/${locationId}`, {
+      const res = await fetch(`/api/favorites/${locationId}`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -289,7 +292,7 @@ const ParkingSlotPage: React.FC = () => {
     try {
       const totalPrice = selectedSlot.pricePerHour * duration;
 
-      const res = await fetch(`${API}/api/bookings/book`, {
+      const res = await fetch(`/api/bookings/book`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -655,7 +658,9 @@ const ParkingSlotPage: React.FC = () => {
               <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-xl">
                 <div className="flex items-center gap-2 mb-3">
                   <Icons.AlertTriangle className="w-5 h-5 text-red-500" />
-                  <span className={`font-semibold ${themeClasses.text}`}>Emergency Assistance</span>
+                  <span className={`font-semibold ${themeClasses.text}`}>
+                    Emergency Assistance
+                  </span>
                 </div>
                 <div className="flex gap-3">
                   <a
@@ -689,6 +694,13 @@ const ParkingSlotPage: React.FC = () => {
                 <Icons.Navigation className="w-4 h-4" />
                 Get Directions
               </a>
+              <button
+                onClick={() => setPredictionSlot(selectedMapSlot)}
+                className={`px-4 py-3 ${themeClasses.cardBgSecondary} border ${themeClasses.border} ${themeClasses.textSecondary} font-semibold rounded-xl ${themeClasses.hover} transition-all duration-300 flex items-center justify-center gap-2`}
+              >
+                <Icons.TrendingUp className="w-4 h-4" />
+                Forecast
+              </button>
               <button
                 onClick={() => handleBookNow(selectedMapSlot)}
                 disabled={
@@ -879,7 +891,11 @@ const ParkingSlotPage: React.FC = () => {
                   <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-xl">
                     <div className="flex items-center gap-2 mb-3">
                       <Icons.AlertTriangle className="w-4 h-4 text-red-500" />
-                      <span className={`text-sm font-semibold ${themeClasses.text}`}>Emergency Assistance</span>
+                      <span
+                        className={`text-sm font-semibold ${themeClasses.text}`}
+                      >
+                        Emergency Assistance
+                      </span>
                     </div>
                     <div className="flex gap-2">
                       <a
@@ -905,6 +921,15 @@ const ParkingSlotPage: React.FC = () => {
 
                 {/* Action Buttons */}
                 <div className="flex gap-2">
+                  {/* Availability Forecast button */}
+                  <button
+                    onClick={() => setPredictionSlot(slot)}
+                    title="View availability forecast"
+                    className={`px-3 py-3 rounded-lg border ${themeClasses.cardBgSecondary} ${themeClasses.border} ${themeClasses.textSecondary} ${themeClasses.hover} transition-colors flex items-center justify-center gap-1.5 text-sm`}
+                  >
+                    <Icons.TrendingUp className="w-4 h-4" />
+                    Forecast
+                  </button>
                   <a
                     href={getDirectionsUrl(slot)}
                     target="_blank"
@@ -1278,9 +1303,17 @@ const ParkingSlotPage: React.FC = () => {
         </div>
       </div>
 
+      {/* Prediction Panel Modal */}
+      {predictionSlot && (
+        <PredictionPanel
+          parkingId={predictionSlot._id}
+          parkingName={predictionSlot.name}
+          onClose={() => setPredictionSlot(null)}
+        />
+      )}
+
       {/* Booking Modal */}
-      <div
-        id="booking-modal"
+      <div        id="booking-modal"
         className="hidden fixed inset-0 bg-black/80 backdrop-blur-sm items-center justify-center z-50 p-4"
       >
         <div
@@ -1482,4 +1515,4 @@ const ParkingSlotPage: React.FC = () => {
   );
 };
 
-export default ParkingSlotPage; 
+export default ParkingSlotPage;

@@ -5,14 +5,15 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { authMiddleware } from "../middleware/auth.js";
 import { sendPasswordResetEmail } from "../utils/email.js";
+import { signup, login, verify } from "../controllers/auth.controller.js";
 
 const router = express.Router();
 
 // Signup
-router.post("/signup",signup);
+router.post("/signup", signup);
 
 // Login (User)
-router.post("/login",login);
+router.post("/login", login);
 
 // Forgot password
 router.post("/forgot-password", async (req, res) => {
@@ -84,16 +85,14 @@ router.post("/reset-password", async (req, res) => {
 
     res.json({ success: true, message: "Password reset successful" });
   } catch (err) {
-    res
-      .status(500)
-      .json({
-        success: false,
-        message: err.message || "Failed to reset password",
-      });
+    res.status(500).json({
+      success: false,
+      message: err.message || "Failed to reset password",
+    });
   }
 });
 
 // verify
-router.get("/verify", authMiddleware,verify);
+router.get("/verify", authMiddleware, verify);
 
 export default router;
