@@ -1352,14 +1352,16 @@ const ParkingSlotPage: React.FC = () => {
                   <div
                     className={`text-3xl font-bold ${themeClasses.text} mb-2`}
                   >
-                    {Math.round(
-                      (filteredAndSortedSlots.reduce(
-                        (sum, s) => sum + s.availableSlots / s.capacity,
-                        0,
-                      ) /
-                        filteredAndSortedSlots.length) *
-                        100,
-                    )}
+                    {filteredAndSortedSlots.length > 0
+                      ? Math.round(
+                          (filteredAndSortedSlots.reduce(
+                            (sum, s) => sum + s.availableSlots / s.capacity,
+                            0,
+                          ) /
+                            filteredAndSortedSlots.length) *
+                            100,
+                        )
+                      : 0}
                     %
                   </div>
                   <div className={themeClasses.textSecondary}>
@@ -1371,12 +1373,14 @@ const ParkingSlotPage: React.FC = () => {
                     className={`text-3xl font-bold ${themeClasses.text} mb-2`}
                   >
                     ₹
-                    {Math.round(
-                      filteredAndSortedSlots.reduce(
-                        (sum, s) => sum + s.pricePerHour,
-                        0,
-                      ) / filteredAndSortedSlots.length,
-                    )}
+                    {filteredAndSortedSlots.length > 0
+                      ? Math.round(
+                          filteredAndSortedSlots.reduce(
+                            (sum, s) => sum + s.pricePerHour,
+                            0,
+                          ) / filteredAndSortedSlots.length,
+                        )
+                      : 0}
                   </div>
                   <div className={themeClasses.textSecondary}>
                     Avg. Price/Hour
@@ -1611,4 +1615,4 @@ const ParkingSlotPage: React.FC = () => {
   );
 };
 
-export default ParkingSlotPage; 
+export default ParkingSlotPage;
