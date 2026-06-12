@@ -68,6 +68,10 @@ interface ParkingSlot {
   capacity: number;
   distance: string;
   rating: number;
+  /** Whether this parking location has an EV charging station */
+  isEVChargingStation: boolean;
+  /** Type of EV charger available at this location */
+  chargerType: "Type 1" | "Type 2" | "CCS" | "CHAdeMO" | "None";
   coordinates?: {
     lat: number;
     lng: number;
@@ -81,9 +85,11 @@ interface ParkingSlot {
   supportedVehicles?: string[];
 }
 
+/** Matches the response shape from GET /api/admin/slots */
 interface ApiResponse {
   success: boolean;
-  message: string;
+  count: number;
+  message?: string;
   data: ParkingSlot[];
 }
 
@@ -197,8 +203,8 @@ const ParkingSlotPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [sortBy, setSortBy] = useState<string>("");
-  const [vehicleFilter, setVehicleFilter] = useState<string>("All");
-  const vehicleTypes = ["All", "Car", "Bike", "SUV", "EV"];
+  /** When true, only EV-charging-enabled slots are fetched from the API */
+  const [evFilter, setEvFilter] = useState<boolean>(false);
   const [viewMode, setViewMode] = useState<"list" | "map">("list");
   const [selectedMapSlot, setSelectedMapSlot] = useState<ParkingSlot | null>(
     null,
@@ -313,10 +319,18 @@ const ParkingSlotPage: React.FC = () => {
 
   const themeClasses = getThemeClasses();
 
-  // Function to fetch parking slots
-  const fetchParkingSlots = async () => {
+  /**
+   * Fetches parking slots from GET /api/admin/slots.
+   * Passes `isEV=true` as a query param when the EV filter is active,
+   * which the backend's getParkingSlots controller handles natively.
+   */
+  const fetchParkingSlots = async (isEV: boolean = false) => {
     try {
-      const response = await fetch(`/api/parking`);
+      setLoading(true);
+      const params = new URLSearchParams();
+      if (isEV) params.set("isEV", "true");
+
+      const response = await fetch(`/api/admin/slots?${params.toString()}`);
       const result: ApiResponse = await response.json();
       if (result.success) {
         const slotsWithCoordinates = result.data.map((slot, index) => ({
@@ -328,7 +342,7 @@ const ParkingSlotPage: React.FC = () => {
         }));
         setParkingSlots(slotsWithCoordinates);
       } else {
-        setError(result.message);
+        setError(result.message ?? "Failed to load slots");
       }
     } catch (err) {
       const errorMessage =
@@ -369,8 +383,13 @@ const ParkingSlotPage: React.FC = () => {
         setUserLocation({ lat: 28.6139, lng: 77.209 });
       });
 
-    fetchParkingSlots();
+    fetchParkingSlots(false);
   }, []);
+
+  // Re-fetch whenever the EV filter toggle changes
+  useEffect(() => {
+    fetchParkingSlots(evFilter);
+  }, [evFilter]);
 
   // Fetch favorites separately to ensure it runs when token is available
   // useEffect(() => {
@@ -582,15 +601,10 @@ const ParkingSlotPage: React.FC = () => {
       );
     }
 
-    // NEW: Add the Vehicle Type Filter logic
-    if (vehicleFilter && vehicleFilter !== "All") {
-      filtered = filtered.filter((slot) => {
-        // Fallback: If supportedVehicles isn't in DB yet, assume it supports cars/bikes
-        if (!slot.supportedVehicles || slot.supportedVehicles.length === 0) {
-          return vehicleFilter !== "EV";
-        }
-        return slot.supportedVehicles.includes(vehicleFilter);
-      });
+    // Client-side guard: if evFilter is on but server somehow returned non-EV slots,
+    // ensure we only show EV slots in the list
+    if (evFilter) {
+      filtered = filtered.filter((slot) => slot.isEVChargingStation === true);
     }
 
     if (sortBy) {
@@ -621,14 +635,7 @@ const ParkingSlotPage: React.FC = () => {
     }
 
     return filtered;
-  }, [
-    parkingSlots,
-    searchTerm,
-    statusFilter,
-    sortBy,
-    userLocation,
-    vehicleFilter,
-  ]);
+  }, [parkingSlots, searchTerm, statusFilter, sortBy, userLocation, evFilter]);
 
   // Render Map View
   const renderMapView = () => {
@@ -958,6 +965,16 @@ const ParkingSlotPage: React.FC = () => {
                     <span className="font-bold text-sm">
                       {getStatusBadge(slot.status)}
                     </span>
+                    {/* EV Charging Station Indicator Badge */}
+                    {slot.isEVChargingStation && (
+                      <span
+                        title={`EV Charger: ${slot.chargerType}`}
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 animate-pulse-subtle"
+                      >
+                        <Icons.Zap className="w-3 h-3 fill-current" />
+                        EV
+                      </span>
+                    )}
                   </div>
                   <span
                     className={`text-xs font-semibold px-3 py-1 rounded-full ${availabilityColor} bg-black/20`}
@@ -1098,6 +1115,25 @@ const ParkingSlotPage: React.FC = () => {
                     </div>
                   </div>
                 </div>
+
+                {/* EV Charging Info Panel */}
+                {slot.isEVChargingStation && (
+                  <div className="mb-4 p-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-lg bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
+                      <Icons.Zap className="w-5 h-5 text-emerald-400 fill-current" />
+                    </div>
+                    <div>
+                      <div className="text-xs font-bold text-emerald-400 uppercase tracking-wide">
+                        EV Charging Available
+                      </div>
+                      {slot.chargerType && slot.chargerType !== "None" && (
+                        <div className={`text-xs ${themeClasses.textSecondary} mt-0.5`}>
+                          Charger type: <span className="font-semibold text-emerald-300">{slot.chargerType}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 {/* Progress Bar */}
                 <div className="mb-6">
@@ -1401,7 +1437,41 @@ const ParkingSlotPage: React.FC = () => {
                 />
               </div>
 
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 flex-wrap">
+                {/* ─── EV Charging Toggle ─── */}
+                <button
+                  id="ev-filter-toggle"
+                  role="switch"
+                  aria-checked={evFilter}
+                  onClick={() => setEvFilter((prev) => !prev)}
+                  title={evFilter ? "Showing EV-only slots" : "Show EV charging slots only"}
+                  className={`relative inline-flex items-center gap-2.5 px-4 py-3 rounded-xl border font-semibold text-sm transition-all duration-300 select-none ${
+                    evFilter
+                      ? "bg-emerald-500/20 border-emerald-500/60 text-emerald-300 shadow-lg shadow-emerald-500/20"
+                      : `${themeClasses.cardBgSecondary} ${themeClasses.border} ${themeClasses.textSecondary} hover:border-emerald-500/40 hover:text-emerald-400`
+                  }`}
+                >
+                  <Icons.Zap
+                    className={`w-4 h-4 transition-colors duration-300 ${
+                      evFilter ? "text-emerald-400 fill-current" : ""
+                    }`}
+                  />
+                  <span>EV Only</span>
+                  {/* Pill toggle visual */}
+                  <span
+                    className={`relative inline-flex w-9 h-5 rounded-full transition-colors duration-300 ${
+                      evFilter ? "bg-emerald-500" : "bg-gray-600"
+                    }`}
+                  >
+                    <span
+                      className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform duration-300 ${
+                        evFilter ? "translate-x-4" : "translate-x-0"
+                      }`}
+                    />
+                  </span>
+                </button>
+                {/* ────────────────────────── */}
+
                 <div
                   className={`flex ${themeClasses.cardBgSecondary} border ${themeClasses.border} rounded-xl overflow-hidden`}
                 >
@@ -1451,6 +1521,24 @@ const ParkingSlotPage: React.FC = () => {
                 </select>
               </div>
             </div>
+
+            {/* Active filter pill summary */}
+            {evFilter && (
+              <div className="mt-4 flex items-center gap-2">
+                <span className={`text-xs ${themeClasses.textSecondary}`}>Active filters:</span>
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/40">
+                  <Icons.Zap className="w-3 h-3 fill-current" />
+                  EV Charging Only
+                  <button
+                    onClick={() => setEvFilter(false)}
+                    className="ml-1 hover:text-white transition-colors"
+                    aria-label="Remove EV filter"
+                  >
+                    <Icons.X className="w-3 h-3" />
+                  </button>
+                </span>
+              </div>
+            )}
           </div>
 
           {filteredAndSortedSlots.length === 0 ? (
@@ -1460,26 +1548,29 @@ const ParkingSlotPage: React.FC = () => {
               <div
                 className={`w-24 h-24 bg-gradient-to-br ${themeClasses.gradient.accent}/20 rounded-full flex items-center justify-center mx-auto mb-6 border ${themeClasses.border}`}
               >
-                <Icons.Car className="w-8 h-8 text-[#1B42CB]" />
+                {evFilter
+                  ? <Icons.Zap className="w-8 h-8 text-emerald-400" />
+                  : <Icons.Car className="w-8 h-8 text-[#1B42CB]" />}
               </div>
               <h3 className={`text-2xl font-bold ${themeClasses.text} mb-3`}>
-                No Parking Slots Found
+                {evFilter ? "No EV Charging Slots Found" : "No Parking Slots Found"}
               </h3>
               <p className={`${themeClasses.textSecondary} mb-6`}>
-                {searchTerm || statusFilter
+                {searchTerm || statusFilter || evFilter
                   ? "Try adjusting your filters"
                   : "Check back later for available spots"}
               </p>
-              {(searchTerm || statusFilter) && (
+              {(searchTerm || statusFilter || evFilter) && (
                 <button
                   onClick={() => {
                     setSearchTerm("");
                     setStatusFilter("");
                     setSortBy("");
+                    setEvFilter(false);
                   }}
                   className="px-6 py-3 bg-gradient-to-r from-[#1B42CB] to-[#1B42CB]/80 text-white font-semibold rounded-xl hover:from-[#1B42CB]/90 hover:to-[#1B42CB]/70 transition-all duration-300"
                 >
-                  Clear Filters
+                  Clear All Filters
                 </button>
               )}
             </div>
